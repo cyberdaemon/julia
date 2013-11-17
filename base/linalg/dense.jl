@@ -62,7 +62,7 @@ function triu!{T}(M::Matrix{T}, k::Integer)
         end
         idx += m
     end
-    return M
+    M
 end
 
 triu(M::Matrix, k::Integer) = triu!(copy(M), k)
@@ -77,7 +77,7 @@ function tril!{T}(M::Matrix{T}, k::Integer)
             end
         idx += m
     end
-    return M
+    M
 end
 
 tril(M::Matrix, k::Integer) = tril!(copy(M), k)
@@ -106,7 +106,7 @@ function gradient(F::Vector, h::Vector)
         h = h[3:n] - h[1:n-2]
         g[2:n-1] = (F[3:n] - F[1:n-2]) ./ h
     end
-    return g
+    g
 end
 
 function diagind(m::Integer, n::Integer, k::Integer=0)
@@ -137,14 +137,8 @@ function trace{T}(A::Matrix{T})
     for i=1:minimum(size(A))
         t += A[i,i]
     end
-    return t
+    t
 end
-
-kron(a::Vector, b::Vector)=vec(kron(reshape(a,length(a),1),reshape(b,length(b),1)))
-
-kron(a::Matrix, b::Vector)=kron(a,reshape(b,length(b),1))
-
-kron(a::Vector, b::Matrix)=kron(reshape(a,length(a),1),b)
 
 function kron{T,S}(a::Matrix{T}, b::Matrix{S})
     R = Array(promote_type(T,S), size(a,1)*size(b,1), size(a,2)*size(b,2))
@@ -164,11 +158,11 @@ function kron{T,S}(a::Matrix{T}, b::Matrix{S})
     R
 end
 
-kron(a::Number, b::Number) = a * b 
-kron(a::Vector, b::Number) = a * b 
-kron(a::Number, b::Vector) = a * b 
-kron(a::Matrix, b::Number) = a * b 
-kron(a::Number, b::Matrix) = a * b 
+kron(a::Number, b::Union(Number, Vector, Matrix)) = a * b 
+kron(a::Union(Vector, Matrix), b::Number) = a * b 
+kron(a::Vector, b::Vector)=vec(kron(reshape(a,length(a),1),reshape(b,length(b),1)))
+kron(a::Matrix, b::Vector)=kron(a,reshape(b,length(b),1))
+kron(a::Vector, b::Matrix)=kron(reshape(a,length(a),1),b)
 
 randsym(n) = symmetrize!(randn(n,n))
 
@@ -227,7 +221,7 @@ function rref{T}(A::Matrix{T})
             j += 1
         end
     end
-    return U
+    U
 end
 
 rref(x::Number) = one(x)
@@ -392,12 +386,7 @@ function sqrtm{T<:Complex}(A::StridedMatrix{T}, cond::Bool)
         end
     end
     retmat = SchurF[:vectors]*R*SchurF[:vectors]'
-    if cond
-        alpha = norm(R)^2/norm(SchurF[:T])
-        return retmat, alpha
-    else
-        return retmat
-    end
+    cond ? (retmat, norm(R)^2/norm(SchurF[:T])) : retmat
 end
 
 sqrtm{T<:Integer}(A::StridedMatrix{T}, cond::Bool) = sqrtm(float(A), cond)
@@ -408,7 +397,7 @@ sqrtm(a::Complex) = sqrt(a)
 
 function det(A::Matrix)
     if istriu(A) | istril(A); return det(Triangular(A, :U, false)); end
-    return det(lufact(A))
+    det(lufact(A))
 end
 det(x::Number) = x
 
@@ -417,7 +406,7 @@ logdet(A::Matrix) = logdet(lufact(A))
 function inv(A::Matrix)
     if istriu(A) return inv(Triangular(A, :U, false)) end
     if istril(A) return inv(Triangular(A, :L, false)) end
-    return inv(lufact(A))
+    inv(lufact(A))
 end
 
 function factorize!{T}(A::Matrix{T})
@@ -490,7 +479,7 @@ function factorize!{T}(A::Matrix{T})
         end
         return lufact!(A)
     end
-    return qrpfact!(A)
+    qrpfact!(A)
 end
 
 factorize(A::AbstractMatrix) = factorize!(copy(A))
@@ -505,13 +494,12 @@ function (\){T<:BlasFloat}(A::StridedMatrix{T}, B::StridedVecOrMat{T})
     m, n = size(A)
     if m == n
         if istril(A)
-            if istriu(A) return \(Diagonal(A),B) end
-            return \(Triangular(A, :L),B) 
+            return istriu(A) ? \(Diagonal(A),B) : \(Triangular(A, :L),B) 
         end
         if istriu(A) return \(Triangular(A, :U),B) end
         return \(lufact(A),B)
     end
-    return qrpfact(A)\B
+    qrpfact(A)\B
 end
 
 ## Moore-Penrose inverse
