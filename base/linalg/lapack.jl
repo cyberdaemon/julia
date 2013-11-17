@@ -270,7 +270,7 @@ for (gebrd, gelqf, geqlf, geqrf, geqp3, geqrt, geqrt3, gerqf, getrf, elty, relty
             chkstride1(A)
             m, n = size(A)
             minmn = min(m, n)
-            nb <= minmn || error("Block size too large")
+            nb <= minmn || throw(ArgumentError("Block size $nb > $minmn too large"))
             lda = max(1, m)
             T = Array($elty, nb, minmn)
             work = Array($elty, nb*n)
@@ -285,7 +285,7 @@ for (gebrd, gelqf, geqlf, geqrf, geqp3, geqrt, geqrt3, gerqf, getrf, elty, relty
                      info)
                 if info[1] < 0 throw(LAPACKException(info[1])) end
             end
-            return A, T
+            A, T
         end
         function geqrt3!(A::StridedMatrix{$elty})
             chkstride1(A)
@@ -302,7 +302,7 @@ for (gebrd, gelqf, geqlf, geqrf, geqp3, geqrt, geqrt3, gerqf, getrf, elty, relty
                      T, &n, info)
                 if info[1] < 0 throw(LAPACKException(info[1])) end
             end
-            return A, T
+            A, T
         end
         ## Several variants of geqrf! could be defined.
         ## geqrfp! - positive elements on diagonal of R
@@ -413,7 +413,7 @@ for (tzrzf, ormrz, elty) in
                 end
             end
             if info[1] != 0 throw(LAPACKException(info[1])) end
-            return A, tau
+            A, tau
         end
    # 21 *       SUBROUTINE ZUNMRZ( SIDE, TRANS, M, N, K, L, A, LDA, TAU, C, LDC,
    # 22 *                          WORK, LWORK, INFO )
@@ -449,7 +449,7 @@ for (tzrzf, ormrz, elty) in
                 end
             end
             if info[1] != 0 throw(LAPACKException(info[1])) end
-            return C
+            C
         end
     end
 end
@@ -608,15 +608,15 @@ for (gesvx, elty) in
           &ldb, X, &n, rcond, ferr, berr, work, iwork, info)
         if info[1] < 0 throw(LAPACKException(info[1])) end
         if info[1] == n+1 warn("Matrix is singular to working precision.") end
-        if 0 < info[1] <= n error(string("SingularError: gesvx!: In LU decomposition, U(",info[1],",",info[1],") = 0. Matrix is singular. No solution was computed")) end
+        if 0 < info[1] <= n throw(SingularError(info[1])) end
         #WORK(1) contains the reciprocal pivot growth factor norm(A)/norm(U)
-        return X, equed, R, C, B, rcond[1], ferr, berr, work[1]
+        X, equed, R, C, B, rcond[1], ferr, berr, work[1]
       end
       #Wrapper for the no-equilibration, no-transpose calculation
       function gesvx!(A::StridedMatrix{$elty}, B::StridedVecOrMat{$elty})
         n=size(A,1)
         X, equed, R, C, B, rcond, ferr, berr, rpgf = gesvx!('N', 'N', A, Array($elty, n, n), Array(BlasInt, n), 'N', Array($elty, n),  Array($elty, n), B)
-        return X, rcond, ferr, berr, rpgf
+        X, rcond, ferr, berr, rpgf
       end
     end
 end
@@ -666,15 +666,15 @@ for (gesvx, elty, relty) in
           &ldb, X, &n, rcond, ferr, berr, work, rwork, info)
         if info[1] < 0 throw(LAPACKException(info[1])) end
         if info[1] == n+1 warn("Matrix is singular to working precision.") end
-        if 0 < info[1] <= n error(string("SingularError: gesvx!: In LU decomposition, U(",info[1],",",info[1],") is zero. Matrix is singular. No solution was computed.")) end
+        if 0 < info[1] <= n throw(SingularError(info[1])) end
         #RWORK(1) contains the reciprocal pivot growth factor norm(A)/norm(U)
-        return X, equed, R, C, B, rcond[1], ferr, berr, rwork[1]
+        X, equed, R, C, B, rcond[1], ferr, berr, rwork[1]
       end
       #Wrapper for the no-equilibration, no-transpose calculation
       function gesvx!(A::StridedMatrix{$elty}, B::StridedVecOrMat{$elty})
         n=size(A,1)
         X, equed, R, C, B, rcond, ferr, berr, rpgf = gesvx!('N', 'N', A, Array($elty, n, n), Array(BlasInt, n), 'N', Array($relty, n),  Array($relty, n), B)
-        return X, rcond, ferr, berr, rpgf
+        X, rcond, ferr, berr, rpgf
       end
     end
  end
@@ -763,7 +763,7 @@ for (gelsd, gelsy, elty) in
                 end
             end
             if info[1] != 0 throw(LAPACKException(info[1])) end
-            return isa(B, Vector) ? newB[1:n] : newB[1:n,:], rnk[1]
+            isa(B, Vector) ? newB[1:n] : newB[1:n,:], rnk[1]
         end
         gelsy!(A::StridedMatrix{$elty}, B::StridedVecOrMat{$elty}) = gelsy!(A, B, eps($elty))
     end
@@ -857,7 +857,7 @@ for (gelsd, gelsy, elty, relty) in
                 end
             end
             if info[1] != 0 throw(LAPACKException(info[1])) end
-            return isa(B, Vector) ? newB[1:n] : newB[1:n,:], rnk[1]
+            isa(B, Vector) ? newB[1:n] : newB[1:n,:], rnk[1]
         end
         gelsy!(A::StridedMatrix{$elty}, B::StridedVecOrMat{$elty}) = gelsy!(A, B, eps($relty))
     end
@@ -1033,7 +1033,7 @@ for (geev, gesvd, gesdd, ggsvd, elty, relty) in
                 else return (U, S, A) 
                 end 
             end
-            return (U, S, VT)
+            U, S, VT
         end
         # SUBROUTINE DGESVD( JOBU, JOBVT, M, N, A, LDA, S, U, LDU, VT, LDVT, WORK, LWORK, INFO )
         # *     .. Scalar Arguments ..
@@ -1151,7 +1151,7 @@ for (geev, gesvd, gesdd, ggsvd, elty, relty) in
             else
                 R = triu([A[1:m, n - k[1] - l[1] + 1:n]; B[m - k[1] + 1:l[1], n - k[1] - l[1] + 1:n]])
             end
-            return U, V, Q, alpha, beta, k[1], l[1], R
+            U, V, Q, alpha, beta, k[1], l[1], R
         end
     end
 end
@@ -1204,7 +1204,7 @@ for (ggev, elty) in
                 end
             end
             if info[1] != 0; throw(LAPACKException(info[1])); end
-            return alphar, alphai, beta, vl, vr
+            alphar, alphai, beta, vl, vr
         end
     end
 end
@@ -1258,7 +1258,7 @@ for (ggev, elty, relty) in
                 end
             end
             if info[1] != 0; throw(LAPACKException(info[1])); end
-            return alpha, beta, vl, vr
+            alpha, beta, vl, vr
         end
     end
 end
@@ -1277,7 +1277,7 @@ for (laic1, elty) in
    # 28 *       DOUBLE PRECISION   W( J ), X( J )
         function laic1!(job::Integer, x::StridedVector{$elty}, sest::$elty, w::StridedVector{$elty}, gamma::$elty)
             j = length(x)
-            if j != length(w) error(DimensionMismatch("Vectors must have same length")) end
+            if j != length(w) throw(DimensionMismatch("Vectors must have same length")) end
             sestpr = Array($elty, 1)
             s = Array($elty, 1)
             c = Array($elty, 1)
@@ -1288,7 +1288,7 @@ for (laic1, elty) in
                 &job, &j, x, &sest, 
                 w, &gamma, sestpr, s, 
                 c)
-            return sestpr[1], s[1], c[1]
+            sestpr[1], s[1], c[1]
         end
     end
 end
@@ -1307,7 +1307,7 @@ for (laic1, elty, relty) in
    # 29 *       COMPLEX*16         W( J ), X( J )
         function laic1!(job::Integer, x::StridedVector{$elty}, sest::$relty, w::StridedVector{$elty}, gamma::$elty)
             j = length(x)
-            if j != length(w) error(DimensionMismatch("Vectors must have same length")) end
+            if j != length(w) throw(DimensionMismatch("Vectors must have same length")) end
             sestpr = Array($relty, 1)
             s = Array($elty, 1)
             c = Array($elty, 1)
@@ -1318,7 +1318,7 @@ for (laic1, elty, relty) in
                 &job, &j, x, &sest, 
                 w, &gamma, sestpr, s, 
                 c)
-            return sestpr[1], s[1], c[1]
+            sestpr[1], s[1], c[1]
         end
     end
 end
@@ -1533,21 +1533,19 @@ for (orglq, orgqr, ormlq, ormqr, gemqrt, elty) in
             nb, k = size(T)
             if k == 0 return C end
             if side == 'L'
-                0 <= k <= m || error("Wrong value for k")
+                0 <= k <= m || throw(DimensionMismatch("Wrong value for k"))
                 m == size(V,1) || throw(DimensionMismatch(""))
                 ldv = stride(V,2)
                 ldv >= max(1, m) || throw(DimensionMismatch("Q and C don't fit"))
                 wss = n*k
             elseif side == 'R'
-                0 <= k <= n || error("Wrong value for k")
+                0 <= k <= n || throw(DimensionMismatch("Wrong value for k"))
                 n == size(V,1) || throw(DimensionMismatch(""))
                 ldv = stride(V,2)
                 ldv >= max(1, n) || throw(DimensionMismatch("Stride error"))
                 wss = m*k
-            else
-                error("side must be either 'L' or 'R'")
             end
-            1 <= nb <= k || error("Wrong value for nb")
+            1 <= nb <= k || throw(DimensionMismatch("Wrong value for nb"))
             ldc = max(1, m)
             work = Array($elty, wss)
             info = Array(BlasInt, 1)
@@ -1561,7 +1559,7 @@ for (orglq, orgqr, ormlq, ormqr, gemqrt, elty) in
                 T, &nb, C, &ldc,
                 work, info)
             if info[1] < 0 throw(LAPACKException(info[1])) end
-            return C
+            C
         end
     end
 end
@@ -1920,7 +1918,7 @@ for (stev, stebz, stegr, stein, elty) in
                 end
             end
             if info[1] != 0 throw(LAPACKException(info[1])) end
-            return w[1:m[1]], Z[:,1:m[1]]
+            w[1:m[1]], Z[:,1:m[1]]
         end
         #*  DSTEIN computes the eigenvectors of a real symmetric tridiagonal
         #*  matrix T corresponding to specified eigenvalues, using inverse
@@ -2495,8 +2493,6 @@ for (syev, syevr, sygvd, elty) in
             elseif jobz == 'V'
                 ldz = max(1,n)
                 Z = Array($elty, ldz, n)
-            else
-                error("jobz must be 'N' of 'V'")
             end
             isuppz = Array(BlasInt, 2*n)
             work  = Array($elty, 1)
@@ -2526,7 +2522,7 @@ for (syev, syevr, sygvd, elty) in
                     iwork = Array(BlasInt, liwork)
                 end
             end
-            return w[1:m[1]], Z[:,1:(jobz == 'V' ? m[1] : 0)]
+            w[1:m[1]], Z[:,1:(jobz == 'V' ? m[1] : 0)]
         end    
         syevr!(jobz::BlasChar, A::StridedMatrix{$elty}) = syevr!(jobz, 'A', 'U', A, 0.0, 0.0, 0, 0, -1.0)   
         # Generalized eigenproblem
@@ -2571,7 +2567,7 @@ for (syev, syevr, sygvd, elty) in
             end
             if info[1] < 0 throw(LAPACKException(info[1])) end
             if info[1] > 0 throw(SingularException(info[1])) end
-            return w, A, B
+            w, A, B
         end
     end
 end
@@ -2636,8 +2632,6 @@ for (syev, syevr, sygvd, elty, relty) in
             elseif jobz == 'V'
                 ldz = n
                 Z = Array($elty, ldz, n)
-            else
-                error("jobz must be 'N' of 'V'")
             end
             isuppz = Array(BlasInt, 2*n)
             work  = Array($elty, 1)
@@ -2671,7 +2665,7 @@ for (syev, syevr, sygvd, elty, relty) in
                     iwork = Array(BlasInt, liwork)
                 end
             end
-            return w[1:m[1]], Z[:,1:(jobz == 'V' ? m[1] : 0)]
+            w[1:m[1]], Z[:,1:(jobz == 'V' ? m[1] : 0)]
         end
         syevr!(jobz::BlasChar, A::StridedMatrix{$elty}) = syevr!(jobz, 'A', 'U', A, 0.0, 0.0, 0, 0, -1.0)
 #       SUBROUTINE ZHEGVD( ITYPE, JOBZ, UPLO, N, A, LDA, B, LDB, W, WORK,
@@ -2726,7 +2720,7 @@ for (syev, syevr, sygvd, elty, relty) in
             end
             if info[1] < 0 throw(LAPACKException(info[1])) end
             if info[1] > 0 throw(SingularException(info[1])) end
-            return w, A, B
+            w, A, B
         end
     end
 end
@@ -2744,8 +2738,6 @@ for (bdsqr, relty, elty) in
         #*> zero-shift QR algorithm.
         function bdsqr!(uplo::BlasChar, d::Vector{$relty}, e_::Vector{$relty},
             vt::StridedMatrix{$elty}, u::StridedMatrix{$elty}, c::StridedMatrix{$elty})
-
-            if uplo == 'U' || uplo == 'L' || error(string("Invalid UPLO: must be 'U' or 'L' but you said", uplo)) end
             n = length(d)
             if length(e_) != n-1 throw(DimensionMismatch("bdsqr!")) end
             ncvt, nru, ncc = size(vt, 2), size(u, 1), size(c, 2)
@@ -2784,7 +2776,6 @@ for (bdsdc, elty) in
         #      DOUBLE PRECISION   D( * ), E( * ), Q( * ), U( LDU, * ),
         #     $                   VT( LDVT, * ), WORK( * )
         function bdsdc!(uplo::BlasChar, compq::BlasChar, d::Vector{$elty}, e_::Vector{$elty})
-            if uplo == 'U' || uplo == 'L' || error(string("Invalid UPLO: must be 'U' or 'L' but you said", uplo)) end
             n, ldiq, ldq, ldu, ldvt = length(d), 1, 1, 1, 1
             if compq == 'N'
                 lwork = 6n
@@ -2799,8 +2790,6 @@ for (bdsdc, elty) in
             elseif compq == 'I'
                 ldvt=ldu=max(1, n)
                 lwork=3*n^2 + 4n
-            else
-                error(string("Invalid COMPQ. Valid choices are 'N', 'P' or 'I' but you said '",compq,"'"))
             end
             u = Array($elty, (ldu,  n))
             vt= Array($elty, (ldvt, n))
@@ -2859,7 +2848,7 @@ for (gecon, elty) in
                   &normtype, &n, A, &lda, &anorm, rcond, work, iwork,
                   info)
             if info[1] != 0 throw(LAPACKException(info[1])) end
-            return rcond[1]
+            rcond[1]
         end
     end
 end
@@ -2893,7 +2882,7 @@ for (gecon, elty, relty) in
                   &normtype, &n, A, &lda, &anorm, rcond, work, rwork,
                   info)
             if info[1] < 0 throw(LAPACKException(info[1])) end
-            return rcond[1]
+            rcond[1]
         end
     end
 end
@@ -2932,7 +2921,7 @@ for (gehrd, elty) in
                     work = Array($elty, lwork)
                 end
             end
-            return A, tau
+            A, tau
         end
     end
 end
@@ -2972,7 +2961,7 @@ for (orghr, elty) in
                     work = Array($elty, lwork)
                 end
             end
-            return A
+            A
         end
     end
 end
@@ -3017,11 +3006,7 @@ for (gees, gges, elty) in
                     work = Array($elty, lwork)
                 end
             end
-            if all(wi .== 0)
-                return A, vs, wr
-            else
-                return A, vs, complex(wr, wi)
-            end
+            A, vs, all(wi .== 0) ? wr : complex(wr, wi)
         end
         function gges!(jobvsl::Char, jobvsr::Char, A::StridedMatrix{$elty}, B::StridedMatrix{$elty})
 # *     .. Scalar Arguments ..
@@ -3068,7 +3053,7 @@ for (gees, gges, elty) in
                 end
             end
             if info[1] != 0 throw(LAPACKException(info[1])) end
-            return A, B, complex(alphar, alphai), beta, vsl[1:(jobvsl == 'V' ? n : 0),:], vsr[1:(jobvsr == 'V' ? n : 0),:]
+            A, B, complex(alphar, alphai), beta, vsl[1:(jobvsl == 'V' ? n : 0),:], vsr[1:(jobvsr == 'V' ? n : 0),:]
         end
     end
 end
@@ -3113,7 +3098,7 @@ for (gees, gges, elty, relty) in
                     work = Array($elty, lwork)
                 end
             end
-            return A, vs, w
+            A, vs, w
         end
         function gges!(jobvsl::Char, jobvsr::Char, A::StridedMatrix{$elty}, B::StridedMatrix{$elty})
 # *     .. Scalar Arguments ..
@@ -3161,7 +3146,7 @@ for (gees, gges, elty, relty) in
                 end
             end
             if info[1] != 0 throw(LAPACKException(info[1])) end
-            return A, B, alpha, beta, vsl[1:(jobvsl == 'V' ? n : 0),:], vsr[1:(jobvsr == 'V' ? n : 0),:]
+            A, B, alpha, beta, vsl[1:(jobvsl == 'V' ? n : 0),:], vsr[1:(jobvsr == 'V' ? n : 0),:]
         end
     end
 end
@@ -3176,12 +3161,10 @@ for (fn, elty, relty) in ((:dsfrk_, :Float64, :Float64),
     @eval begin
         function sfrk!(transr::Char, uplo::Char, trans::Char, alpha::Real, A::StridedMatrix{$elty}, beta::Real, C::StridedVector{$elty})
             chkstride1(A)
-            if trans == 'N'
+            if trans == 'N' || trans == 'n'
                 n, k = size(A)
-            elseif trans == 'T'
+            elseif trans == 'T' || trans == 't'
                 k, n = size(A)
-            else
-                throw(LAPACKException(0))
             end
             lda = max(1, stride(A, 2))
             ccall(($(string(fn)), liblapack), Void,
@@ -3191,7 +3174,7 @@ for (fn, elty, relty) in ((:dsfrk_, :Float64, :Float64),
                 &transr, &uplo, &trans, &n,
                 &k, &alpha, A, &lda,
                 &beta, C)
-            return C
+            C
         end
     end
 end
@@ -3255,7 +3238,7 @@ for (fn, elty) in ((:dpftrs_, :Float64),
                 &transr, &uplo, &n, &nhrs,
                 A, B, &ldb, info)
             if info[1] < 0 throw(LAPACKException(info[1])) end
-            return B
+            B
         end
     end
 end
@@ -3278,7 +3261,7 @@ for (fn, elty) in ((:dtfsm_, :Float64),
                 &transr, &side, &uplo, &trans,
                 &diag, &m, &n, &alpha,
                 A, B, &ldb)
-            return B
+            B
         end
     end
 end
